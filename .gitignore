@@ -1,8 +1,6 @@
 ﻿node_modules/
-survey.db
-survey.db-wal
-survey.db-shm
-public/uploads/*
+survey.db*
+web/uploads/*
 !.gitkeep
 server.js.localbackup
 server_pre.js

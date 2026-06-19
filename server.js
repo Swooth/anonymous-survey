@@ -7,13 +7,11 @@ const initSqlJs = require("sql.js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const UPLOAD_DIR = path.join(__dirname, "public", "uploads");
+const UPLOAD_DIR = path.join(__dirname, "web", "uploads");
 
-// ?????? + ????????
 let db;
 const DB_PATH = path.join(__dirname, "survey.db");
 
-// ---- ??????????? fallback ----
 let memoryDB = {
   surveys: [],
   questions: [],
@@ -23,11 +21,9 @@ let memoryDB = {
 };
 let useMemoryFallback = false;
 
-// ---- ???? ----
 function genId() { return uuidv4(); }
 function now() { return new Date().toISOString().replace("T", " ").slice(0, 19); }
 
-// ---- ??? ----
 async function initDB() {
   try {
     const SQL = await initSqlJs();
@@ -40,7 +36,6 @@ async function initDB() {
     db.run("CREATE TABLE IF NOT EXISTS answers (id TEXT PRIMARY KEY, response_id TEXT NOT NULL, question_id TEXT NOT NULL, value TEXT, image_path TEXT)");
     db.run("CREATE TABLE IF NOT EXISTS admins (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL)");
     saveDB();
-
     const rows = db.exec("SELECT id FROM admins WHERE username='admin' LIMIT 1");
     if (!rows.length || !rows[0].values.length) {
       db.run("INSERT INTO admins (id, username, password) VALUES (?, 'admin', 'admin123')", [uuidv4()]);
@@ -62,7 +57,6 @@ function saveDB() {
   } catch(e) { console.error("???????:", e.message); }
 }
 
-// ---- ????????? SQLite ????????----
 function queryAll(sql, params) {
   if (useMemoryFallback) return memQueryAll(sql, params);
   try {
@@ -72,10 +66,7 @@ function queryAll(sql, params) {
     while (stmt.step()) results.push(stmt.getAsObject());
     stmt.free();
     return results;
-  } catch(e) {
-    console.error("queryAll error:", e.message, sql);
-    return [];
-  }
+  } catch(e) { console.error("queryAll error:", e.message); return []; }
 }
 
 function queryOne(sql, params) {
@@ -87,42 +78,35 @@ function queryOne(sql, params) {
     if (stmt.step()) result = stmt.getAsObject();
     stmt.free();
     return result;
-  } catch(e) {
-    console.error("queryOne error:", e.message);
-    return null;
-  }
+  } catch(e) { console.error("queryOne error:", e.message); return null; }
 }
 
 function runSQL(sql, params) {
   if (useMemoryFallback) return memRunSQL(sql, params);
   try {
-    if (params) db.run(sql, params);
-    else db.run(sql);
+    if (params) db.run(sql, params); else db.run(sql);
     saveDB();
   } catch(e) { console.error("runSQL error:", e.message); }
 }
 
-// ---- ?????? ----
 function memQueryAll(sql, params) {
   const tbl = (sql.match(/FROM\s+(\w+)/i) || [])[1];
   if (!tbl || !memoryDB[tbl]) return [];
   let data = [...memoryDB[tbl]];
-  // ????? WHERE id=?
   if (sql.includes("WHERE") && params && params.length) {
     const whereClause = sql.split("WHERE")[1];
-    if (whereClause.includes("survey_id=?") && sql.includes("status='active'")) {
+    if (whereClause.includes("survey_id=?") && sql.includes("status='active'"))
       data = data.filter(d => d.survey_id === params[0] && d.status === 'active');
-    } else if (whereClause.includes("id=?") && whereClause.includes("status='active'")) {
+    else if (whereClause.includes("id=?") && whereClause.includes("status='active'"))
       data = data.filter(d => d.id === params[0] && d.status === 'active');
-    } else if (whereClause.includes("survey_id=?")) {
+    else if (whereClause.includes("survey_id=?"))
       data = data.filter(d => d.survey_id === params[0]);
-    } else if (whereClause.includes("question_id=?")) {
+    else if (whereClause.includes("question_id=?"))
       data = data.filter(d => d.question_id === params[0]);
-    } else if (whereClause.includes("username=?") && whereClause.includes("password=?")) {
+    else if (whereClause.includes("username=?") && whereClause.includes("password=?"))
       data = data.filter(d => d.username === params[0] && d.password === params[1]);
-    } else if (whereClause.includes("id=?")) {
+    else if (whereClause.includes("id=?"))
       data = data.filter(d => d.id === params[0]);
-    }
   }
   if (sql.includes("ORDER BY")) {
     if (sql.includes("created_at DESC")) data.sort((a,b) => (b.created_at||"").localeCompare(a.created_at||""));
@@ -142,19 +126,16 @@ function memRunSQL(sql, params) {
   const action = tblMatch[1].toUpperCase();
   const tbl = tblMatch[2];
   if (!memoryDB[tbl]) memoryDB[tbl] = [];
-
   if (action.startsWith("INSERT")) {
     const colsMatch = sql.match(/\(([^)]+)\)\s*VALUES/i);
-    const valsMatch = sql.match(/VALUES\s*\(([^)]+)\)/i);
-    if (colsMatch && valsMatch && params) {
+    if (colsMatch && params) {
       const cols = colsMatch[1].split(",").map(c => c.trim().replace(/['"]/g,""));
       const obj = { id: params[0] };
       cols.forEach((c, i) => { if (params[i] !== undefined) obj[c] = params[i]; });
       memoryDB[tbl].push(obj);
     }
   } else if (action === "UPDATE") {
-    const idMatch = sql.match(/WHERE\s+id=\?/);
-    if (idMatch && params) {
+    if (params) {
       const id = params[params.length-1];
       const item = memoryDB[tbl].find(d => d.id === id);
       if (item) {
@@ -171,13 +152,11 @@ function memRunSQL(sql, params) {
   } else if (action.startsWith("DELETE")) {
     const idMatch = sql.match(/WHERE\s+(\w+)=\?/);
     if (idMatch && params) {
-      const col = idMatch[1];
-      memoryDB[tbl] = memoryDB[tbl].filter(d => d[col] !== params[0]);
+      memoryDB[tbl] = memoryDB[tbl].filter(d => d[idMatch[1]] !== params[0]);
     }
   }
 }
 
-// ---- Express ??? ----
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -193,16 +172,14 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  storage, limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, allowed.includes(ext));
+    cb(null, allowed.includes(path.extname(file.originalname).toLowerCase()));
   }
 });
 
-// ---- API ?? ----
+// API ??
 app.get("/api/surveys", (req, res) => {
   const surveys = queryAll("SELECT id, title, description, created_at FROM surveys WHERE status='active' ORDER BY created_at DESC");
   res.json(surveys);
@@ -220,30 +197,19 @@ app.post("/api/survey/:id/submit", upload.array("images"), (req, res) => {
   const surveyId = req.params.id;
   const survey = queryOne("SELECT id FROM surveys WHERE id=? AND status='active'", [surveyId]);
   if (!survey) return res.status(404).json({ error: "?????????" });
-
   let answers;
-  try {
-    answers = typeof req.body.answers === "string" ? JSON.parse(req.body.answers) : req.body.answers;
-  } catch(e) {
-    return res.status(400).json({ error: "??????" });
-  }
+  try { answers = typeof req.body.answers === "string" ? JSON.parse(req.body.answers) : req.body.answers; }
+  catch(e) { return res.status(400).json({ error: "??????" }); }
   if (!answers || !Array.isArray(answers)) return res.status(400).json({ error: "??????" });
-
   const ipHash = uuidv4().slice(0, 8);
   const responseId = uuidv4();
   runSQL("INSERT INTO responses (id, survey_id, ip_hash) VALUES (?, ?, ?)", [responseId, surveyId, ipHash]);
-
   let imgIdx = 0;
   for (const ans of answers) {
     let imagePath = null;
-    if (ans.type === "image" && req.files && req.files[imgIdx]) {
-      imagePath = "/uploads/" + req.files[imgIdx].filename;
-      imgIdx++;
-    }
-    runSQL("INSERT INTO answers (id, response_id, question_id, value, image_path) VALUES (?, ?, ?, ?, ?)",
-      [uuidv4(), responseId, ans.questionId, ans.value || "", imagePath]);
+    if (ans.type === "image" && req.files && req.files[imgIdx]) { imagePath = "/uploads/" + req.files[imgIdx].filename; imgIdx++; }
+    runSQL("INSERT INTO answers (id, response_id, question_id, value, image_path) VALUES (?, ?, ?, ?, ?)", [uuidv4(), responseId, ans.questionId, ans.value || "", imagePath]);
   }
-
   res.json({ success: true, responseId });
 });
 
@@ -269,30 +235,20 @@ app.get("/api/admin/survey/:id/stats", (req, res) => {
   const surveyId = req.params.id;
   const survey = queryOne("SELECT * FROM surveys WHERE id=?", [surveyId]);
   if (!survey) return res.status(404).json({ error: "?????" });
-
   const questions = queryAll("SELECT * FROM questions WHERE survey_id=? ORDER BY sort_order", [surveyId]);
   const totalResponses = queryOne("SELECT COUNT(*) as cnt FROM responses WHERE survey_id=?", [surveyId]);
-
   const stats = questions.map(q => {
     q.options = JSON.parse(q.options || "[]");
     const answers = queryAll("SELECT a.* FROM answers a JOIN responses r ON a.response_id=r.id WHERE a.question_id=? AND r.survey_id=?", [q.id, surveyId]);
     let result = { question: q, total: answers.length, details: [] };
-
     if (q.type === "radio" || q.type === "checkbox" || q.type === "double_select") {
       const countMap = {};
-      answers.forEach(a => {
-        const vals = a.value ? a.value.split(",") : [];
-        vals.forEach(v => { countMap[v] = (countMap[v] || 0) + 1; });
-      });
+      answers.forEach(a => { (a.value||"").split(",").filter(Boolean).forEach(v => { countMap[v] = (countMap[v] || 0) + 1; }); });
       result.details = Object.entries(countMap).map(([key, count]) => ({ key, count }));
-    } else if (q.type === "text") {
-      result.details = answers.map(a => ({ value: a.value }));
-    } else if (q.type === "image") {
-      result.details = answers.map(a => ({ image_path: a.image_path }));
-    }
+    } else if (q.type === "text") { result.details = answers.map(a => ({ value: a.value })); }
+    else if (q.type === "image") { result.details = answers.map(a => ({ image_path: a.image_path })); }
     return result;
   });
-
   res.json({ survey, stats, total_responses: totalResponses ? totalResponses.cnt : 0 });
 });
 
@@ -300,27 +256,14 @@ app.post("/api/admin/survey/save", (req, res) => {
   if (!req.headers.authorization) return res.status(401).json({ error: "???" });
   const { id, title, description, questions } = req.body;
   const surveyId = id || uuidv4();
-
   const existing = queryOne("SELECT id FROM surveys WHERE id=?", [surveyId]);
-  if (existing) {
-    runSQL("UPDATE surveys SET title=?, description=? WHERE id=?", [title, description || "", surveyId]);
-  } else {
-    runSQL("INSERT INTO surveys (id, title, description) VALUES (?, ?, ?)", [surveyId, title, description || ""]);
-  }
-
+  if (existing) runSQL("UPDATE surveys SET title=?, description=? WHERE id=?", [title, description || "", surveyId]);
+  else runSQL("INSERT INTO surveys (id, title, description) VALUES (?, ?, ?)", [surveyId, title, description || ""]);
   const oldQs = queryAll("SELECT id FROM questions WHERE survey_id=?", [surveyId]);
-  oldQs.forEach(q => {
-    runSQL("DELETE FROM answers WHERE question_id=?", [q.id]);
-    runSQL("DELETE FROM questions WHERE id=?", [q.id]);
-  });
-
+  oldQs.forEach(q => { runSQL("DELETE FROM answers WHERE question_id=?", [q.id]); runSQL("DELETE FROM questions WHERE id=?", [q.id]); });
   if (questions && Array.isArray(questions)) {
-    questions.forEach((q, idx) => {
-      runSQL("INSERT INTO questions (id, survey_id, type, title, options, required, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [uuidv4(), surveyId, q.type, q.title, JSON.stringify(q.options || []), q.required ? 1 : 0, idx]);
-    });
+    questions.forEach((q, idx) => { runSQL("INSERT INTO questions (id, survey_id, type, title, options, required, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)", [uuidv4(), surveyId, q.type, q.title, JSON.stringify(q.options || []), q.required ? 1 : 0, idx]); });
   }
-
   res.json({ success: true, surveyId });
 });
 
@@ -335,18 +278,17 @@ app.post("/api/admin/survey/:id/toggle", (req, res) => {
 
 app.get("/health", (req, res) => res.json({ status: "ok", mode: useMemoryFallback ? "memory" : "sqlite" }));
 
-// ---- ???? ----
+// ????
 app.use("/uploads", express.static(UPLOAD_DIR));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "web")));
 
 // SPA fallback
 app.get("*", (req, res) => {
-  const filePath = path.join(__dirname, "public", "index.html");
+  const filePath = path.join(__dirname, "web", "index.html");
   if (fs.existsSync(filePath)) return res.sendFile(filePath);
   res.status(404).json({ error: "Not found" });
 });
 
-// ---- ?? ----
 initDB().then(() => {
   app.listen(PORT, "0.0.0.0", () => {
     console.log("==================================");
