@@ -1,0 +1,303 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>匿名问卷调查</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; color: #333; min-height: 100vh; padding: 16px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .desc { color: #666; font-size: 14px; margin-bottom: 12px; }
+    .survey-list { list-style: none; }
+    .survey-item { display: block; padding: 16px; background: #fff; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer; transition: transform 0.1s; text-decoration: none; color: inherit; }
+    .survey-item:active { transform: scale(0.98); }
+    .survey-item h3 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+    .survey-item .date { font-size: 12px; color: #999; }
+    .empty { text-align: center; padding: 40px 0; color: #999; }
+    .empty .icon { font-size: 48px; margin-bottom: 12px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 24px; background: #4a90d9; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s; }
+    .btn:active { background: #357abd; }
+    .btn-secondary { background: #e8ecf1; color: #333; }
+    .btn-secondary:active { background: #d5dae0; }
+    .btn-success { background: #34c759; }
+    .btn-success:active { background: #2db84e; }
+    .btn-danger { background: #ff3b30; }
+    .btn-danger:active { background: #e0352b; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .question-block { margin-bottom: 24px; }
+    .question-block:last-child { margin-bottom: 0; }
+    .q-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: flex-start; }
+    .q-required { color: #ff3b30; margin-left: 4px; font-size: 14px; }
+    .option-item { display: flex; align-items: center; padding: 10px 12px; margin-bottom: 6px; border: 2px solid #e8ecf1; border-radius: 8px; transition: all 0.15s; }
+    .option-item.selected { border-color: #4a90d9; background: #f0f6ff; }
+    .option-item input[type='radio'], .option-item input[type='checkbox'] { margin-right: 10px; width: 20px; height: 20px; accent-color: #4a90d9; flex-shrink: 0; }
+    .option-item label { flex: 1; font-size: 15px; cursor: pointer; }
+    .text-input { width: 100%; padding: 12px; border: 2px solid #e8ecf1; border-radius: 8px; font-size: 15px; outline: none; transition: border 0.2s; font-family: inherit; }
+    .text-input:focus { border-color: #4a90d9; }
+    textarea.text-input { min-height: 100px; resize: vertical; }
+    .image-upload-area { border: 2px dashed #ccc; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; }
+    .image-upload-area:active { background: #f0f0f0; }
+    .image-upload-area.has-image { border-color: #34c759; background: #f0faf0; }
+    .image-upload-area input { display: none; }
+    .image-upload-area .upload-icon { font-size: 36px; margin-bottom: 8px; }
+    .image-upload-area .upload-text { font-size: 14px; color: #666; }
+    .image-preview { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 8px; }
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .loading { text-align: center; padding: 20px; color: #999; }
+    .loading::after { content: '...'; animation: dots 1.2s steps(3, end) infinite; }
+    @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60%, 100% { content: '...'; } }
+    .nav-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+    .nav-bar .btn { flex: 1; }
+    .success-page { text-align: center; padding: 40px 0; }
+    .success-page .check { font-size: 64px; color: #34c759; margin-bottom: 16px; }
+    .success-page h2 { font-size: 20px; margin-bottom: 8px; }
+    .success-page p { color: #666; margin-bottom: 24px; }
+    .hidden { display: none; }
+    .error-msg { color: #ff3b30; font-size: 13px; margin-top: 4px; }
+    .double-select-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .double-select-row select { flex: 1; padding: 10px; border: 2px solid #e8ecf1; border-radius: 8px; font-size: 14px; background: #fff; outline: none; }
+    .double-select-row select:focus { border-color: #4a90d9; }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <div id="page-home">
+      <div class="card" style="text-align:center;">
+        <h1>📋 匿名问卷调查</h1>
+        <p class="desc">无需登录，完全匿名，放心填写</p>
+      </div>
+      <div id="surveyList"></div>
+    </div>
+
+    <div id="page-survey" class="hidden">
+      <button class="btn btn-secondary" onclick="goHome()" style="margin-bottom:12px;">← 返回列表</button>
+      <div class="card">
+        <h1 id="surveyTitle"></h1>
+        <p class="desc" id="surveyDesc"></p>
+      </div>
+      <div class="card" id="questionsContainer"></div>
+      <div class="card">
+        <button class="btn btn-success" onclick="submitSurvey()" id="submitBtn">提交问卷</button>
+      </div>
+    </div>
+
+    <div id="page-success" class="hidden">
+      <div class="card success-page">
+        <div class="check">✓</div>
+        <h2>提交成功！</h2>
+        <p>感谢您的参与，您的回答已匿名提交。</p>
+        <button class="btn btn-secondary" onclick="goHome()">返回首页</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    let currentSurveyId = null;
+    let imageFiles = {};
+
+    async function fetchAPI(url, opts = {}) {
+      try {
+        const res = await fetch(url, opts);
+        if (!res.ok) throw new Error('请求失败');
+        return await res.json();
+      } catch (e) {
+        showToast('网络错误，请稍后重试');
+        throw e;
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function goHome() {
+      document.getElementById('page-home').classList.remove('hidden');
+      document.getElementById('page-survey').classList.add('hidden');
+      document.getElementById('page-success').classList.add('hidden');
+      loadSurveys();
+    }
+
+    async function loadSurveys() {
+      const container = document.getElementById('surveyList');
+      container.innerHTML = '<div class="loading">加载中</div>';
+      try {
+        const surveys = await fetchAPI('/api/surveys');
+        if (!surveys.length) {
+          container.innerHTML = '<div class="empty"><div class="icon">📝</div><p>暂无可用问卷</p></div>';
+          return;
+        }
+        container.innerHTML = '<div class="survey-list">' + surveys.map(s => 
+          '<a class="survey-item" onclick="openSurvey(\'' + s.id + '\')">' +
+            '<h3>' + escapeHtml(s.title) + '</h3>' +
+            (s.description ? '<p>' + escapeHtml(s.description) + '</p>' : '') +
+            '<div class="date">发布于 ' + formatDate(s.created_at) + '</div>' +
+          '</a>'
+        ).join('') + '</div>';
+      } catch (e) {
+        container.innerHTML = '<div class="empty"><p>加载失败，<a href="#" onclick="loadSurveys()">点击重试</a></p></div>';
+      }
+    }
+
+    function formatDate(d) { return d ? d.slice(0, 10) : ''; }
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    async function openSurvey(id) {
+      currentSurveyId = id;
+      imageFiles = {};
+      document.getElementById('page-home').classList.add('hidden');
+      document.getElementById('page-survey').classList.remove('hidden');
+      document.getElementById('page-success').classList.add('hidden');
+
+      document.getElementById('questionsContainer').innerHTML = '<div class="loading">加载中</div>';
+      try {
+        const data = await fetchAPI('/api/survey/' + id);
+        document.getElementById('surveyTitle').textContent = data.survey.title;
+        document.getElementById('surveyDesc').textContent = data.survey.description || '';
+
+        let html = '';
+        data.questions.forEach((q, idx) => {
+          html += '<div class="question-block" data-qid="' + q.id + '" data-type="' + q.type + '">';
+          html += '<div class="q-title">' + (idx + 1) + '. ' + escapeHtml(q.title) + (q.required ? '<span class="q-required">*</span>' : '') + '</div>';
+
+          if (q.type === 'radio') {
+            q.options.forEach(o => {
+              html += '<div class="option-item" onclick="selectRadio(this)">' +
+                '<input type="radio" name="q_' + q.id + '" value="' + escapeHtml(o) + '">' +
+                '<label>' + escapeHtml(o) + '</label></div>';
+            });
+          } else if (q.type === 'checkbox') {
+            q.options.forEach(o => {
+              html += '<div class="option-item" onclick="toggleCheckbox(this)">' +
+                '<input type="checkbox" value="' + escapeHtml(o) + '">' +
+                '<label>' + escapeHtml(o) + '</label></div>';
+            });
+          } else if (q.type === 'double_select') {
+            const mid = Math.ceil(q.options.length / 2);
+            const left = q.options.slice(0, mid);
+            const right = q.options.slice(mid);
+            html += '<div class="double-select-row">' +
+              '<select id="ds_left_' + q.id + '"><option value="">请选择</option>' + left.map(o => '<option value="' + escapeHtml(o) + '">' + escapeHtml(o) + '</option>').join('') + '</select>' +
+              '<select id="ds_right_' + q.id + '"><option value="">请选择</option>' + right.map(o => '<option value="' + escapeHtml(o) + '">' + escapeHtml(o) + '</option>').join('') + '</select>' +
+              '</div>';
+          } else if (q.type === 'text') {
+            html += '<textarea class="text-input" placeholder="请输入您的回答..."></textarea>';
+          } else if (q.type === 'image') {
+            html += '<div class="image-upload-area" onclick="document.getElementById(\'img_' + q.id + '\').click()" id="area_' + q.id + '">' +
+              '<div class="upload-icon">📷</div>' +
+              '<div class="upload-text">点击上传图片</div>' +
+              '<input type="file" accept="image/*" id="img_' + q.id + '" onchange="previewImage(this, \'' + q.id + '\')">' +
+              '<img class="image-preview hidden" id="preview_' + q.id + '">' +
+              '</div>';
+          }
+          html += '</div>';
+        });
+        document.getElementById('questionsContainer').innerHTML = html;
+      } catch (e) {
+        document.getElementById('questionsContainer').innerHTML = '<div class="empty"><p>加载问卷失败</p></div>';
+      }
+    }
+
+    function selectRadio(el) {
+      const parent = el.parentElement;
+      parent.querySelectorAll('.option-item').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      el.querySelector('input[type="radio"]').checked = true;
+    }
+
+    function toggleCheckbox(el) {
+      el.classList.toggle('selected');
+      const cb = el.querySelector('input[type="checkbox"]');
+      cb.checked = !cb.checked;
+    }
+
+    function previewImage(input, qid) {
+      if (input.files && input.files[0]) {
+        imageFiles[qid] = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const preview = document.getElementById('preview_' + qid);
+          preview.src = e.target.result;
+          preview.classList.remove('hidden');
+          document.getElementById('area_' + qid).classList.add('has-image');
+          document.getElementById('area_' + qid).querySelector('.upload-text').textContent = '点击更换图片';
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    async function submitSurvey() {
+      const container = document.getElementById('questionsContainer');
+      const blocks = container.querySelectorAll('.question-block');
+      const answers = [];
+      let hasError = false;
+      const formData = new FormData();
+
+      blocks.forEach((block, idx) => {
+        const qid = block.dataset.qid;
+        const type = block.dataset.type;
+        const required = block.querySelector('.q-required') !== null;
+        let value = '';
+
+        if (type === 'radio') {
+          const checked = block.querySelector('input[type="radio"]:checked');
+          if (checked) value = checked.value;
+          else if (required) { hasError = true; showToast('请回答第 ' + (idx + 1) + ' 题'); }
+        } else if (type === 'checkbox') {
+          const checked = block.querySelectorAll('input[type="checkbox"]:checked');
+          value = Array.from(checked).map(c => c.value).join(',');
+          if (required && !value) { hasError = true; showToast('请回答第 ' + (idx + 1) + ' 题'); }
+        } else if (type === 'double_select') {
+          const left = document.getElementById('ds_left_' + qid).value;
+          const right = document.getElementById('ds_right_' + qid).value;
+          if (left || right) value = [left, right].filter(Boolean).join(',');
+          else if (required) { hasError = true; showToast('请回答第 ' + (idx + 1) + ' 题'); }
+        } else if (type === 'text') {
+          value = block.querySelector('textarea')?.value || '';
+          if (required && !value.trim()) { hasError = true; showToast('请回答第 ' + (idx + 1) + ' 题'); }
+        } else if (type === 'image') {
+          if (imageFiles[qid]) {
+            formData.append('images', imageFiles[qid]);
+          } else if (required) { hasError = true; showToast('请上传第 ' + (idx + 1) + ' 题的图片'); }
+          answers.push({ questionId: qid, type: 'image', value: '' });
+          return; // 跳过下面的push
+        }
+        answers.push({ questionId: qid, type, value });
+      });
+
+      if (hasError) return;
+
+      formData.append('answers', JSON.stringify(answers));
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = '提交中...';
+
+      try {
+        const res = await fetch('/api/survey/' + currentSurveyId + '/submit', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('page-survey').classList.add('hidden');
+          document.getElementById('page-success').classList.remove('hidden');
+        } else {
+          showToast(data.error || '提交失败');
+        }
+      } catch (e) {
+        showToast('提交失败，请重试');
+      }
+      btn.disabled = false;
+      btn.textContent = '提交问卷';
+    }
+
+    loadSurveys();
+  </script>
+</body>
+</html>
