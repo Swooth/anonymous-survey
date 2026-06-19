@@ -6,8 +6,6 @@ const { v4: uuidv4 } = require("uuid");
 const initSqlJs = require("sql.js");
 
 const app = express();
-
-// Railway ???? PORT????? 3000
 const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, "survey.db");
 const UPLOAD_DIR = path.join(__dirname, "public", "uploads");
@@ -67,8 +65,6 @@ function runSQL(sql, params) {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(UPLOAD_DIR));
-app.use(express.static(path.join(__dirname, "public")));
 
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -90,6 +86,8 @@ const upload = multer({
     cb(null, allowed.includes(ext));
   }
 });
+
+// ----- API ???????????? -----
 
 app.get("/api/surveys", (req, res) => {
   const surveys = queryAll("SELECT id, title, description, created_at FROM surveys WHERE status='active' ORDER BY created_at DESC");
@@ -223,8 +221,21 @@ app.post("/api/admin/survey/:id/toggle", (req, res) => {
   res.json({ success: true, status: newStatus });
 });
 
-// Railway health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+// ----- ??????? API ????? -----
+app.use("/uploads", express.static(UPLOAD_DIR));
+app.use(express.static(path.join(__dirname, "public")));
+
+// ??? API ????? index.html????????
+app.get("*", (req, res) => {
+  const filePath = path.join(__dirname, "public", "index.html");
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: "Not found" });
+  }
+});
 
 initDB().then(() => {
   app.listen(PORT, "0.0.0.0", () => {
