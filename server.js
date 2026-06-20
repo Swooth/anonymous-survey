@@ -158,6 +158,12 @@ function memRunSQL(sql, params) {
 }
 
 app.use(express.json());
+// Override Railway CSP to allow eval
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", "default-src 'self'; img-src 'self' data: https: *; style-src 'self' 'unsafe-inline' https: *; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: *; font-src 'self' data: https: *; connect-src 'self' https: *; media-src 'self' https: *; object-src 'none'; frame-src 'self' https: *;");
+  next();
+});
+
 app.use(express.urlencoded({ extended: true }));
 
 if (!fs.existsSync(UPLOAD_DIR)) {
