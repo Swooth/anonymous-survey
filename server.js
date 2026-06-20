@@ -180,12 +180,12 @@ const upload = multer({
 });
 
 // API ??
-app.get("/api/surveys", (req, res) => {
+app.get("/_api/surveys", (req, res) => {
   const surveys = queryAll("SELECT id, title, description, created_at FROM surveys WHERE status='active' ORDER BY created_at DESC");
   res.json(surveys);
 });
 
-app.get("/api/survey/:id", (req, res) => {
+app.get("/_api/survey/:id", (req, res) => {
   const survey = queryOne("SELECT * FROM surveys WHERE id=?", [req.params.id]);
   if (!survey) return res.status(404).json({ error: "?????" });
   const questions = queryAll("SELECT * FROM questions WHERE survey_id=? ORDER BY sort_order", [req.params.id]);
@@ -193,7 +193,7 @@ app.get("/api/survey/:id", (req, res) => {
   res.json({ survey, questions });
 });
 
-app.post("/api/survey/:id/submit", upload.array("images"), (req, res) => {
+app.post("/_api/survey/:id/submit", upload.array("images"), (req, res) => {
   const surveyId = req.params.id;
   const survey = queryOne("SELECT id FROM surveys WHERE id=? AND status='active'", [surveyId]);
   if (!survey) return res.status(404).json({ error: "?????????" });
@@ -213,14 +213,14 @@ app.post("/api/survey/:id/submit", upload.array("images"), (req, res) => {
   res.json({ success: true, responseId });
 });
 
-app.post("/api/admin/login", (req, res) => {
+app.post("/_api/admin/login", (req, res) => {
   const { username, password } = req.body;
   const admin = queryOne("SELECT * FROM admins WHERE username=? AND password=?", [username, password]);
   if (!admin) return res.status(401).json({ error: "????????" });
   res.json({ success: true, token: "admin-token-" + admin.id });
 });
 
-app.get("/api/admin/surveys", (req, res) => {
+app.get("/_api/admin/surveys", (req, res) => {
   if (!req.headers.authorization) return res.status(401).json({ error: "???" });
   const surveys = queryAll("SELECT * FROM surveys ORDER BY created_at DESC");
   surveys.forEach(s => {
@@ -230,7 +230,7 @@ app.get("/api/admin/surveys", (req, res) => {
   res.json(surveys);
 });
 
-app.get("/api/admin/survey/:id/stats", (req, res) => {
+app.get("/_api/admin/survey/:id/stats", (req, res) => {
   if (!req.headers.authorization) return res.status(401).json({ error: "???" });
   const surveyId = req.params.id;
   const survey = queryOne("SELECT * FROM surveys WHERE id=?", [surveyId]);
@@ -252,7 +252,7 @@ app.get("/api/admin/survey/:id/stats", (req, res) => {
   res.json({ survey, stats, total_responses: totalResponses ? totalResponses.cnt : 0 });
 });
 
-app.post("/api/admin/survey/save", (req, res) => {
+app.post("/_api/admin/survey/save", (req, res) => {
   if (!req.headers.authorization) return res.status(401).json({ error: "???" });
   const { id, title, description, questions } = req.body;
   const surveyId = id || uuidv4();
@@ -267,7 +267,7 @@ app.post("/api/admin/survey/save", (req, res) => {
   res.json({ success: true, surveyId });
 });
 
-app.post("/api/admin/survey/:id/toggle", (req, res) => {
+app.post("/_api/admin/survey/:id/toggle", (req, res) => {
   if (!req.headers.authorization) return res.status(401).json({ error: "???" });
   const survey = queryOne("SELECT * FROM surveys WHERE id=?", [req.params.id]);
   if (!survey) return res.status(404).json({ error: "?????" });
@@ -411,7 +411,7 @@ const FRONTEND_INDEX = String.raw`﻿<!DOCTYPE html>
       const container = document.getElementById('surveyList');
       container.innerHTML = '<div class="loading">加载中</div>';
       try {
-        const surveys = await fetchAPI('/api/surveys');
+        const surveys = await fetchAPI('/_api/surveys');
         if (!surveys.length) {
           container.innerHTML = '<div class="empty"><div class="icon">📝</div><p>暂无可用问卷</p></div>';
           return;
@@ -440,7 +440,7 @@ const FRONTEND_INDEX = String.raw`﻿<!DOCTYPE html>
 
       document.getElementById('questionsContainer').innerHTML = '<div class="loading">加载中</div>';
       try {
-        const data = await fetchAPI('/api/survey/' + id);
+        const data = await fetchAPI('/_api/survey/' + id);
         document.getElementById('surveyTitle').textContent = data.survey.title;
         document.getElementById('surveyDesc').textContent = data.survey.description || '';
 
@@ -563,7 +563,7 @@ const FRONTEND_INDEX = String.raw`﻿<!DOCTYPE html>
       btn.textContent = '提交中...';
 
       try {
-        const res = await fetch('/api/survey/' + currentSurveyId + '/submit', { method: 'POST', body: formData });
+        const res = await fetch('/_api/survey/' + currentSurveyId + '/submit', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.success) {
           document.getElementById('page-survey').classList.add('hidden');
@@ -748,7 +748,7 @@ const FRONTEND_ADMIN = String.raw`﻿<!DOCTYPE html>
       const username = document.getElementById('loginUser').value.trim();
       const password = document.getElementById('loginPass').value.trim();
       if (!username || !password) { showToast('请输入用户名和密码'); return; }
-      fetch('/api/admin/login', {
+      fetch('/_api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -780,7 +780,7 @@ const FRONTEND_ADMIN = String.raw`﻿<!DOCTYPE html>
       const container = document.getElementById('tab-list');
       container.innerHTML = '<div class="loading" style="text-align:center;padding:20px;color:#999;">加载中...</div>';
       try {
-        const surveys = await api('/api/admin/surveys');
+        const surveys = await api('/_api/admin/surveys');
         if (!surveys.length) {
           container.innerHTML = '<div class="empty"><p>暂无问卷，点击右上角新建</p></div>';
           return;
@@ -810,7 +810,7 @@ const FRONTEND_ADMIN = String.raw`﻿<!DOCTYPE html>
       const container = document.getElementById('tab-stats');
       container.innerHTML = '<div class="loading" style="text-align:center;padding:20px;color:#999;">加载统计中...</div>';
       try {
-        const data = await api('/api/admin/survey/' + id + '/stats');
+        const data = await api('/_api/admin/survey/' + id + '/stats');
         let html = '<div class="card"><h2>' + escapeHtml(data.survey.title) + ' - 统计结果</h2>';
         html += '<div class="stats-summary">' +
           '<div class="stat-card"><div class="num">' + data.total_responses + '</div><div class="label">总回答数</div></div>' +
@@ -854,7 +854,7 @@ const FRONTEND_ADMIN = String.raw`﻿<!DOCTYPE html>
 
     async function toggleSurvey(id) {
       try {
-        await api('/api/admin/survey/' + id + '/toggle', { method: 'POST' });
+        await api('/_api/admin/survey/' + id + '/toggle', { method: 'POST' });
         showToast('状态已更新');
         loadList();
       } catch(e) { showToast('操作失败'); }
@@ -870,7 +870,7 @@ const FRONTEND_ADMIN = String.raw`﻿<!DOCTYPE html>
       questionCounter = 0;
 
       if (id) {
-        fetch('/api/survey/' + id).then(r => r.json()).then(data => {
+        fetch('/_api/survey/' + id).then(r => r.json()).then(data => {
           document.getElementById('edit-title').value = data.survey.title;
           document.getElementById('edit-desc').value = data.survey.description || '';
           data.questions.forEach(q => {
@@ -984,7 +984,7 @@ const FRONTEND_ADMIN = String.raw`﻿<!DOCTYPE html>
       if (!questions.length) { showToast('请至少添加一道题目'); return; }
 
       try {
-        const res = await api('/api/admin/survey/save', {
+        const res = await api('/_api/admin/survey/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: editingId, title, description: desc, questions })
